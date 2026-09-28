@@ -10,9 +10,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#0f172a">
 
-  <!-- Tailwind & Supabase SDK -->
+  <!-- Tailwind, Supabase SDK, Chart.js y SheetJS (Excel) -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 antialiased min-h-screen">
 
@@ -81,7 +83,7 @@
           </div>
         </div>
 
-        <!-- 4 Filtros -->
+        <!-- 4 Filtros + Botón Exportar a Excel -->
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -111,7 +113,32 @@
             </div>
           </div>
 
-          <button onclick="clearFilters()" class="text-[11px] text-blue-600 font-semibold w-full text-right hover:underline">Limpiar todos los filtros</button>
+          <div class="flex items-center justify-between pt-1 border-t border-slate-100">
+            <button onclick="clearFilters()" class="text-[11px] text-blue-600 font-semibold hover:underline">Limpiar filtros</button>
+            <button onclick="exportToExcel()" class="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg shadow-sm transition">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Exportar Excel
+            </button>
+          </div>
+        </div>
+
+        <!-- GRÁFICOS REPRESENTATIVOS -->
+        <div id="chartsContainer" class="space-y-4">
+          <!-- Gráfico 1: Comparativa Ingresos vs Egresos -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Proporción de Fondos</h3>
+            <div class="h-48 relative">
+              <canvas id="chartDonut"></canvas>
+            </div>
+          </div>
+
+          <!-- Gráfico 2: Desglose por Motivo -->
+          <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+            <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Desglose por Motivo ($)</h3>
+            <div class="h-56 relative">
+              <canvas id="chartCategories"></canvas>
+            </div>
+          </div>
         </div>
 
         <!-- Lista Detallada de Movimientos -->
@@ -252,6 +279,10 @@
     let currentUser = JSON.parse(localStorage.getItem('treasury_session') || 'null');
     let categories = { income: [], expense: [] };
     let currentTransactions = [];
+    
+    // Instancias de Chart.js
+    let donutChartInstance = null;
+    let categoriesChartInstance = null;
 
     if (currentUser) {
       startApp();
@@ -290,12 +321,11 @@
       const adminNav = document.getElementById('adminNav');
       const sectionRegister = document.getElementById('sectionRegister');
 
-      // CONTROL DIRECTO DE VISIBILIDAD MEDIANTE STYLE.DISPLAY
       if (currentUser.role === 'admin') {
         adminNav.style.display = 'grid';
         loadUsersList();
       } else {
-        adminNav.style.display = 'none'; // Quita completamente la barra de pestañas
+        adminNav.style.display = 'none';
         sectionRegister.style.display = 'none';
       }
 
@@ -398,10 +428,7 @@
     // REGISTRAR MOVIMIENTO
     document.getElementById('txForm').addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (currentUser.role !== 'admin') {
-        alert('Acceso denegado.');
-        return;
-      }
+      if (currentUser.role !== 'admin') return;
 
       const btn = document.getElementById('saveTxBtn');
       btn.disabled = true;
@@ -434,7 +461,7 @@
       }
     });
 
-    // REPORTES Y FILTROS
+    // REPORTES, BALANCES Y GRÁFICOS
     async function loadReports() {
       const startDate = document.getElementById('filterStartDate').value;
       const endDate = document.getElementById('filterEndDate').value;
@@ -468,11 +495,13 @@
         document.getElementById('metricIncome').textContent = '$0';
         document.getElementById('metricExpense').textContent = '$0';
         document.getElementById('metricBalance').textContent = '$0';
+        renderCharts(0, 0, {});
         return;
       }
 
       let totalIn = 0;
       let totalOut = 0;
+      let categoryTotals = {};
       list.innerHTML = '';
 
       data.forEach(item => {
@@ -480,6 +509,9 @@
         const num = Number(item.amount);
         if (isIncome) totalIn += num;
         else totalOut += num;
+
+        // Sumar para gráfico por categoría
+        categoryTotals[item.category] = (categoryTotals[item.category] || 0) + num;
 
         const d = new Date(item.transacted_at);
         const fechaHora = d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -516,6 +548,96 @@
       const bElem = document.getElementById('metricBalance');
       bElem.textContent = `$${balance.toLocaleString('es-AR')}`;
       bElem.className = `text-sm font-bold ${balance >= 0 ? 'text-blue-600' : 'text-rose-600'}`;
+
+      renderCharts(totalIn, totalOut, categoryTotals);
+    }
+
+    // RENDERIZADO DE GRÁFICOS (CHART.JS)
+    function renderCharts(income, expense, catTotals) {
+      // 1. Gráfico de Donut: Ingresos vs Egresos
+      const ctxDonut = document.getElementById('chartDonut').getContext('2d');
+      if (donutChartInstance) donutChartInstance.destroy();
+
+      donutChartInstance = new Chart(ctxDonut, {
+        type: 'doughnut',
+        data: {
+          labels: ['Ingresos', 'Egresos'],
+          datasets: [{
+            data: [income, expense],
+            backgroundColor: ['#10b981', '#f43f5e'],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+          }
+        }
+      });
+
+      // 2. Gráfico de Barras: Distribución por Motivos
+      const ctxBar = document.getElementById('chartCategories').getContext('2d');
+      if (categoriesChartInstance) categoriesChartInstance.destroy();
+
+      const sortedCategories = Object.keys(catTotals).sort((a, b) => catTotals[b] - catTotals[a]);
+      const catData = sortedCategories.map(c => catTotals[c]);
+
+      categoriesChartInstance = new Chart(ctxBar, {
+        type: 'bar',
+        data: {
+          labels: sortedCategories,
+          datasets: [{
+            label: 'Monto ($)',
+            data: catData,
+            backgroundColor: '#3b82f6',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            x: { ticks: { font: { size: 10 } } },
+            y: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    // EXPORTAR A EXCEL (.XLSX)
+    function exportToExcel() {
+      if (!currentTransactions || currentTransactions.length === 0) {
+        alert('No hay movimientos cargados para exportar con los filtros actuales.');
+        return;
+      }
+
+      const rows = currentTransactions.map(item => {
+        const d = new Date(item.transacted_at);
+        return {
+          'Fecha': d.toLocaleDateString('es-AR'),
+          'Hora': d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          'Tipo': item.type === 'income' ? 'Ingreso' : 'Egreso',
+          'Motivo': item.category,
+          'Monto ($)': Number(item.amount),
+          'Descripción': item.description || '',
+          'Registrado por': item.created_by || ''
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, 'Tesorería');
+
+      // Descargar con nombre formateado
+      const today = new Date().toISOString().slice(0, 10);
+      XLSX.writeFile(workbook, `Tesoreria_Reporte_${today}.xlsx`);
     }
 
     function clearFilters() {
