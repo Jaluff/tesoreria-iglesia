@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -63,7 +62,7 @@
 
     <main class="max-w-md mx-auto p-4 space-y-4">
 
-      <!-- SECCIÓN 1: REPORTES Y BALANCES (Visible para todos) -->
+      <!-- SECCIÓN 1: REPORTES Y BALANCES -->
       <div id="sectionReports" class="space-y-4">
         
         <!-- Tarjetas de Balance Visibles -->
@@ -82,28 +81,42 @@
           </div>
         </div>
 
-        <!-- Filtros de Reporte -->
+        <!-- 4 Filtros: Fecha Inicio, Fecha Fin, Tipo de Flujo y Motivo -->
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
           <div class="grid grid-cols-2 gap-2">
             <div>
-              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Fecha</label>
-              <input type="date" id="filterDate" onchange="loadReports()" class="w-full text-xs px-2 py-2 border rounded-lg">
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Fecha Inicio</label>
+              <input type="date" id="filterStartDate" onchange="loadReports()" class="w-full text-xs px-2 py-2 border rounded-lg">
             </div>
             <div>
-              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Tipo</label>
-              <select id="filterType" onchange="loadReports()" class="w-full text-xs px-2 py-2 border rounded-lg bg-white">
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Fecha Fin</label>
+              <input type="date" id="filterEndDate" onchange="loadReports()" class="w-full text-xs px-2 py-2 border rounded-lg">
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Tipo de Flujo</label>
+              <select id="filterFlowType" onchange="onFlowTypeChange()" class="w-full text-xs px-2 py-2 border rounded-lg bg-white">
                 <option value="all">Todos</option>
                 <option value="income">Ingresos (+)</option>
                 <option value="expense">Egresos (-)</option>
               </select>
             </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Motivo / Categoría</label>
+              <select id="filterCategory" onchange="loadReports()" class="w-full text-xs px-2 py-2 border rounded-lg bg-white">
+                <option value="all">Todos los motivos</option>
+              </select>
+            </div>
           </div>
-          <button onclick="clearFilters()" class="text-[11px] text-blue-600 font-semibold w-full text-right">Limpiar filtros</button>
+
+          <button onclick="clearFilters()" class="text-[11px] text-blue-600 font-semibold w-full text-right hover:underline">Limpiar todos los filtros</button>
         </div>
 
-        <!-- Lista Detallada de Movimientos -->
+        <!-- Lista de Movimientos con Edición/Eliminación -->
         <div class="space-y-2">
-          <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider px-1">Detalle del Período</h2>
+          <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider px-1">Detalle de Movimientos</h2>
           <div id="txList" class="space-y-2"></div>
         </div>
 
@@ -114,29 +127,26 @@
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
           <form id="txForm" class="space-y-4">
             
-            <!-- Selector Tipo -->
             <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
               <label class="cursor-pointer">
-                <input type="radio" name="txType" value="income" checked class="peer sr-only" onchange="updateCategories()">
+                <input type="radio" name="txType" value="income" checked class="peer sr-only" onchange="updateFormCategories()">
                 <div class="py-2.5 text-center text-sm font-semibold rounded-lg peer-checked:bg-emerald-600 peer-checked:text-white text-slate-600 transition">
                   + Ingreso
                 </div>
               </label>
               <label class="cursor-pointer">
-                <input type="radio" name="txType" value="expense" class="peer sr-only" onchange="updateCategories()">
+                <input type="radio" name="txType" value="expense" class="peer sr-only" onchange="updateFormCategories()">
                 <div class="py-2.5 text-center text-sm font-semibold rounded-lg peer-checked:bg-rose-600 peer-checked:text-white text-slate-600 transition">
                   - Egreso
                 </div>
               </label>
             </div>
 
-            <!-- Monto -->
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Monto ($)</label>
               <input type="number" id="txAmount" step="any" inputmode="decimal" required placeholder="0.00" class="w-full px-4 py-3 rounded-xl border border-slate-300 text-2xl font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none">
             </div>
 
-            <!-- Motivo -->
             <div>
               <div class="flex justify-between items-center mb-1">
                 <label class="text-xs font-semibold text-slate-500">Motivo</label>
@@ -145,10 +155,9 @@
               <select id="txCategory" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white font-medium text-slate-700 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
             </div>
 
-            <!-- Descripción opcional -->
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Descripción / Observación (Opcional)</label>
-              <input type="text" id="txDesc" placeholder="Ej: Pago alquiler mes actual" class="w-full px-4 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              <input type="text" id="txDesc" placeholder="Ej: Pago de alquiler, culto dominical..." class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
             </div>
 
             <button type="submit" id="saveTxBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 rounded-xl shadow transition text-sm">
@@ -157,7 +166,7 @@
           </form>
         </div>
 
-        <!-- ABM DE USUARIOS (Solo visible para Admin) -->
+        <!-- ABM DE USUARIOS -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
           <h2 class="text-sm font-bold text-slate-800 border-b pb-2">Gestión de Usuarios</h2>
           <form id="userForm" class="space-y-3">
@@ -172,8 +181,8 @@
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Rol</label>
               <select id="newRole" class="w-full px-3 py-2 rounded-lg border bg-white text-sm">
-                <option value="user">Usuario (Solo reportes)</option>
-                <option value="admin">Administrador (Carga + Usuarios)</option>
+                <option value="user">Usuario (Solo consulta)</option>
+                <option value="admin">Administrador (Carga + Edición + Usuarios)</option>
               </select>
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg text-xs transition">
@@ -192,6 +201,49 @@
     </main>
   </div>
 
+  <!-- MODAL EDITAR MOVIMIENTO -->
+  <div id="editModal" class="fixed inset-0 bg-slate-900/60 z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4">
+      <h3 class="text-sm font-bold text-slate-800 border-b pb-2">Editar Movimiento</h3>
+      <form id="editForm" class="space-y-3">
+        <input type="hidden" id="editId">
+        
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Tipo de Flujo</label>
+          <select id="editType" onchange="updateEditCategories()" class="w-full text-xs px-2.5 py-2 border rounded-lg bg-white">
+            <option value="income">Ingreso (+)</option>
+            <option value="expense">Egreso (-)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Monto ($)</label>
+          <input type="number" id="editAmount" step="any" required class="w-full text-sm font-bold px-3 py-2 border rounded-lg">
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Motivo</label>
+          <select id="editCategory" required class="w-full text-xs px-2.5 py-2 border rounded-lg bg-white"></select>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Fecha</label>
+          <input type="date" id="editDate" required class="w-full text-xs px-2.5 py-2 border rounded-lg">
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-semibold text-slate-500 mb-1">Descripción</label>
+          <input type="text" id="editDesc" class="w-full text-xs px-3 py-2 border rounded-lg">
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 pt-2">
+          <button type="button" onclick="closeEditModal()" class="w-full py-2 text-xs font-semibold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700">Cancelar</button>
+          <button type="submit" class="w-full py-2 text-xs font-semibold rounded-lg bg-blue-600 hover:bg-blue-700 text-white">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     // CREDENCIALES SUPABASE
     const SUPABASE_URL = "https://wpkbojgotrblpaggsylg.supabase.co";
@@ -200,8 +252,8 @@
 
     let currentUser = JSON.parse(localStorage.getItem('treasury_session') || 'null');
     let categories = { income: [], expense: [] };
+    let currentTransactions = [];
 
-    // INICIALIZACIÓN
     if (currentUser) {
       startApp();
     }
@@ -212,7 +264,7 @@
       const u = document.getElementById('loginUser').value.trim();
       const p = document.getElementById('loginPass').value.trim();
 
-      const { data, error } = await sb.from('app_users').select('*').eq('username', u).eq('password', p).single();
+      const { data } = await sb.from('app_users').select('*').eq('username', u).eq('password', p).single();
 
       if (data) {
         currentUser = data;
@@ -229,7 +281,7 @@
       location.reload();
     }
 
-    function startApp() {
+    async function startApp() {
       document.getElementById('loginView').classList.add('hidden');
       document.getElementById('appView').classList.remove('hidden');
       
@@ -243,14 +295,15 @@
         document.getElementById('navTabs').classList.add('grid-cols-1');
       }
 
-      loadCategories();
+      await loadCategories();
+      populateFilterCategories();
       loadReports();
+
       if (currentUser.role === 'admin') {
         loadUsersList();
       }
     }
 
-    // PESTAÑAS
     function switchTab(tab) {
       const repSec = document.getElementById('sectionReports');
       const regSec = document.getElementById('sectionRegister');
@@ -274,14 +327,17 @@
     // CATEGORÍAS
     async function loadCategories() {
       const { data } = await sb.from('categories').select('*');
-      if (data) {
+      if (data && data.length > 0) {
         categories.income = data.filter(c => c.type === 'income').map(c => c.name);
         categories.expense = data.filter(c => c.type === 'expense').map(c => c.name);
+      } else {
+        categories.income = ['Diezmo', 'Ofrenda', 'Pacto', 'Pro-Templo', 'Otro'];
+        categories.expense = ['Alquiler', 'Luz / Servicios', 'Mantenimiento', 'Honorarios', 'Otro'];
       }
-      updateCategories();
+      updateFormCategories();
     }
 
-    function updateCategories() {
+    function updateFormCategories() {
       const type = document.querySelector('input[name="txType"]:checked').value;
       const select = document.getElementById('txCategory');
       select.innerHTML = '';
@@ -293,6 +349,31 @@
       });
     }
 
+    function onFlowTypeChange() {
+      populateFilterCategories();
+      loadReports();
+    }
+
+    function populateFilterCategories() {
+      const flow = document.getElementById('filterFlowType').value;
+      const catSelect = document.getElementById('filterCategory');
+      catSelect.innerHTML = '<option value="all">Todos los motivos</option>';
+
+      let list = [];
+      if (flow === 'all') {
+        list = Array.from(new Set([...categories.income, ...categories.expense]));
+      } else {
+        list = categories[flow] || [];
+      }
+
+      list.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        catSelect.appendChild(opt);
+      });
+    }
+
     async function promptNewCategory() {
       const type = document.querySelector('input[name="txType"]:checked').value;
       const val = prompt(`Nuevo motivo para ${type === 'income' ? 'Ingreso' : 'Egreso'}:`);
@@ -300,12 +381,13 @@
         const clean = val.trim();
         await sb.from('categories').insert([{ type, name: clean }]);
         categories[type].push(clean);
-        updateCategories();
+        updateFormCategories();
+        populateFilterCategories();
         document.getElementById('txCategory').value = clean;
       }
     }
 
-    // GUARDAR MOVIMIENTO (Solo Admin)
+    // REGISTRAR MOVIMIENTO (Solo Admin)
     document.getElementById('txForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('saveTxBtn');
@@ -341,27 +423,35 @@
 
     // REPORTES Y FILTROS
     async function loadReports() {
-      const dateVal = document.getElementById('filterDate').value;
-      const typeVal = document.getElementById('filterType').value;
+      const startDate = document.getElementById('filterStartDate').value;
+      const endDate = document.getElementById('filterEndDate').value;
+      const flowType = document.getElementById('filterFlowType').value;
+      const category = document.getElementById('filterCategory').value;
       const list = document.getElementById('txList');
-      list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">Cargando datos...</p>';
+      list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">Cargando...</p>';
 
       let query = sb.from('transactions').select('*').order('transacted_at', { ascending: false });
 
-      if (typeVal !== 'all') {
-        query = query.eq('type', typeVal);
+      if (flowType !== 'all') {
+        query = query.eq('type', flowType);
       }
 
-      if (dateVal) {
-        const start = new Date(dateVal + 'T00:00:00').toISOString();
-        const end = new Date(dateVal + 'T23:59:59').toISOString();
-        query = query.gte('transacted_at', start).lte('transacted_at', end);
+      if (category !== 'all') {
+        query = query.eq('category', category);
+      }
+
+      if (startDate) {
+        query = query.gte('transacted_at', new Date(startDate + 'T00:00:00').toISOString());
+      }
+      if (endDate) {
+        query = query.lte('transacted_at', new Date(endDate + 'T23:59:59').toISOString());
       }
 
       const { data } = await query;
+      currentTransactions = data || [];
 
       if (!data || data.length === 0) {
-        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No hay movimientos para este filtro.</p>';
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No se encontraron movimientos con los filtros aplicados.</p>';
         document.getElementById('metricIncome').textContent = '$0';
         document.getElementById('metricExpense').textContent = '$0';
         document.getElementById('metricBalance').textContent = '$0';
@@ -381,18 +471,30 @@
         const d = new Date(item.transacted_at);
         const fechaHora = d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        const row = document.createElement('div');
-        row.className = 'bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm';
-        row.innerHTML = `
-          <div>
-            <div class="font-bold text-sm text-slate-800">${item.category}</div>
-            <div class="text-[11px] text-slate-400">${fechaHora} ${item.description ? '· ' + item.description : ''}</div>
+        const isAdmin = currentUser.role === 'admin';
+        const actionsHtml = isAdmin ? `
+          <div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 justify-end">
+            <button onclick="openEditModal(${item.id})" class="text-[11px] font-semibold text-blue-600 hover:underline">Editar</button>
+            <span class="text-slate-200">|</span>
+            <button onclick="deleteTransaction(${item.id})" class="text-[11px] font-semibold text-rose-500 hover:underline">Eliminar</button>
           </div>
-          <div class="font-bold text-sm ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
-            ${isIncome ? '+' : '-'}$${num.toLocaleString('es-AR')}
+        ` : '';
+
+        const card = document.createElement('div');
+        card.className = 'bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm text-sm';
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div>
+              <div class="font-bold text-slate-800">${item.category}</div>
+              <div class="text-[11px] text-slate-400">${fechaHora} ${item.description ? '· ' + item.description : ''}</div>
+            </div>
+            <div class="font-bold text-base ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
+              ${isIncome ? '+' : '-'}$${num.toLocaleString('es-AR')}
+            </div>
           </div>
+          ${actionsHtml}
         `;
-        list.appendChild(row);
+        list.appendChild(card);
       });
 
       document.getElementById('metricIncome').textContent = `$${totalIn.toLocaleString('es-AR')}`;
@@ -404,12 +506,88 @@
     }
 
     function clearFilters() {
-      document.getElementById('filterDate').value = '';
-      document.getElementById('filterType').value = 'all';
+      document.getElementById('filterStartDate').value = '';
+      document.getElementById('filterEndDate').value = '';
+      document.getElementById('filterFlowType').value = 'all';
+      populateFilterCategories();
       loadReports();
     }
 
-    // GESTIÓN DE USUARIOS (Solo Admin)
+    // ELIMINAR MOVIMIENTO (Solo Admin)
+    async function deleteTransaction(id) {
+      if (!confirm('¿Estás seguro de eliminar este movimiento?')) return;
+      const { error } = await sb.from('transactions').delete().eq('id', id);
+      if (!error) {
+        loadReports();
+      } else {
+        alert('Error al eliminar: ' + error.message);
+      }
+    }
+
+    // EDITAR MOVIMIENTO (Solo Admin)
+    function openEditModal(id) {
+      const item = currentTransactions.find(t => t.id === id);
+      if (!item) return;
+
+      document.getElementById('editId').value = item.id;
+      document.getElementById('editType').value = item.type;
+      document.getElementById('editAmount').value = item.amount;
+      document.getElementById('editDesc').value = item.description || '';
+      
+      // Fecha en formato YYYY-MM-DD
+      const dateStr = new Date(item.transacted_at).toISOString().split('T')[0];
+      document.getElementById('editDate').value = dateStr;
+
+      updateEditCategories();
+      document.getElementById('editCategory').value = item.category;
+
+      document.getElementById('editModal').classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.add('hidden');
+    }
+
+    function updateEditCategories() {
+      const type = document.getElementById('editType').value;
+      const sel = document.getElementById('editCategory');
+      sel.innerHTML = '';
+      (categories[type] || []).forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        sel.appendChild(opt);
+      });
+    }
+
+    document.getElementById('editForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('editId').value;
+      const type = document.getElementById('editType').value;
+      const amount = parseFloat(document.getElementById('editAmount').value);
+      const category = document.getElementById('editCategory').value;
+      const description = document.getElementById('editDesc').value;
+      const dateVal = document.getElementById('editDate').value;
+
+      const dateObj = new Date(dateVal + 'T12:00:00').toISOString();
+
+      const { error } = await sb.from('transactions').update({
+        type,
+        amount,
+        category,
+        description,
+        transacted_at: dateObj
+      }).eq('id', id);
+
+      if (!error) {
+        closeEditModal();
+        loadReports();
+      } else {
+        alert('Error al actualizar: ' + error.message);
+      }
+    });
+
+    // ABM USUARIOS (Solo Admin)
     document.getElementById('userForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const username = document.getElementById('newUsername').value.trim();
@@ -423,7 +601,7 @@
         alert('Usuario creado con éxito');
         loadUsersList();
       } else {
-        alert('Error (puede que el usuario ya exista): ' + error.message);
+        alert('Error: ' + error.message);
       }
     });
 
@@ -432,7 +610,7 @@
       const { data } = await sb.from('app_users').select('id, username, role');
       if (data) {
         container.innerHTML = data.map(u => `
-          <div class="flex justify-between py-1 border-b border-slate-100">
+          <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
             <span><b>${u.username}</b> (${u.role})</span>
             ${u.username !== 'admin' ? `<button onclick="deleteUser(${u.id})" class="text-rose-500 font-bold hover:underline">Eliminar</button>` : ''}
           </div>
