@@ -53,8 +53,8 @@
         <button onclick="logout()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700">Salir</button>
       </div>
 
-      <!-- Barra de pestañas -->
-      <nav id="navTabs" class="max-w-md mx-auto grid grid-cols-2 gap-2 mt-3 bg-slate-800 p-1 rounded-xl">
+      <!-- Barra de pestañas (SOLO visible para Administrador) -->
+      <nav id="adminNav" class="max-w-md mx-auto grid grid-cols-2 gap-2 mt-3 bg-slate-800 p-1 rounded-xl" style="display: none;">
         <button id="tabReportsBtn" onclick="switchTab('reports')" class="py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white transition">Reportes y Balance</button>
         <button id="tabRegisterBtn" onclick="switchTab('register')" class="py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition">Cargar Movimiento</button>
       </nav>
@@ -62,10 +62,10 @@
 
     <main class="max-w-md mx-auto p-4 space-y-4">
 
-      <!-- SECCIÓN 1: REPORTES Y BALANCES (Visible para todos) -->
+      <!-- SECCIÓN 1: REPORTES Y BALANCES -->
       <div id="sectionReports" class="space-y-4">
         
-        <!-- Tarjetas de Balance Visibles -->
+        <!-- Tarjetas de Balance -->
         <div class="grid grid-cols-3 gap-2">
           <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
             <span class="text-[10px] uppercase font-bold text-emerald-600 block">Ingresos</span>
@@ -81,7 +81,7 @@
           </div>
         </div>
 
-        <!-- 4 Filtros: Fecha Inicio, Fecha Fin, Tipo de Flujo y Motivo -->
+        <!-- 4 Filtros -->
         <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
           <div class="grid grid-cols-2 gap-2">
             <div>
@@ -122,8 +122,8 @@
 
       </div>
 
-      <!-- SECCIÓN 2: CARGAR MOVIMIENTO (Solo Admin) -->
-      <div id="sectionRegister" class="space-y-4 hidden">
+      <!-- SECCIÓN 2: CARGAR MOVIMIENTO Y USUARIOS (Solo Admin) -->
+      <div id="sectionRegister" class="space-y-4" style="display: none;">
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
           <form id="txForm" class="space-y-4">
             
@@ -172,7 +172,7 @@
           <form id="userForm" class="space-y-3">
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Nuevo Usuario</label>
-              <input type="text" id="newUsername" required placeholder="ej: pastor, secretaria" class="w-full px-3 py-2 rounded-lg border text-sm">
+              <input type="text" id="newUsername" required placeholder="ej: secretaria, colaborador" class="w-full px-3 py-2 rounded-lg border text-sm">
             </div>
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Contraseña</label>
@@ -181,8 +181,8 @@
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Rol</label>
               <select id="newRole" class="w-full px-3 py-2 rounded-lg border bg-white text-sm">
-                <option value="user">Usuario (Solo consulta)</option>
-                <option value="admin">Administrador (Carga + Edición + Usuarios)</option>
+                <option value="user">Usuario (Solo reportes)</option>
+                <option value="admin">Administrador (Carga + Usuarios)</option>
               </select>
             </div>
             <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg text-xs transition">
@@ -245,7 +245,6 @@
   </div>
 
   <script>
-    // CREDENCIALES SUPABASE
     const SUPABASE_URL = "https://wpkbojgotrblpaggsylg.supabase.co";
     const SUPABASE_ANON_KEY = "sb_publishable_DpwCnnYi5nSDgBOH9Licow_iTOwy6XU";
     const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -288,24 +287,19 @@
       const badge = document.getElementById('userBadge');
       badge.textContent = `👤 ${currentUser.username} (${currentUser.role === 'admin' ? 'Administrador' : 'Usuario'})`;
 
-      const regBtn = document.getElementById('tabRegisterBtn');
-      const regSec = document.getElementById('sectionRegister');
-      const navTabs = document.getElementById('navTabs');
+      const adminNav = document.getElementById('adminNav');
+      const sectionRegister = document.getElementById('sectionRegister');
 
-      // BLOQUEO ESTRICTO POR ROL
-      if (currentUser.role !== 'admin') {
-        regBtn.classList.add('hidden');
-        regSec.classList.add('hidden');
-        navTabs.classList.remove('grid-cols-2');
-        navTabs.classList.add('grid-cols-1');
-        switchTab('reports');
-      } else {
-        regBtn.classList.remove('hidden');
-        navTabs.classList.add('grid-cols-2');
-        navTabs.classList.remove('grid-cols-1');
+      // CONTROL DIRECTO DE VISIBILIDAD MEDIANTE STYLE.DISPLAY
+      if (currentUser.role === 'admin') {
+        adminNav.style.display = 'grid';
         loadUsersList();
+      } else {
+        adminNav.style.display = 'none'; // Quita completamente la barra de pestañas
+        sectionRegister.style.display = 'none';
       }
 
+      switchTab('reports');
       await loadCategories();
       populateFilterCategories();
       loadReports();
@@ -322,14 +316,14 @@
       const regBtn = document.getElementById('tabRegisterBtn');
 
       if (tab === 'reports') {
-        repSec.classList.remove('hidden');
-        regSec.classList.add('hidden');
+        repSec.style.display = 'block';
+        regSec.style.display = 'none';
         repBtn.className = "py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white transition";
         regBtn.className = "py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition";
         loadReports();
       } else {
-        repSec.classList.add('hidden');
-        regSec.classList.remove('hidden');
+        repSec.style.display = 'none';
+        regSec.style.display = 'block';
         regBtn.className = "py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white transition";
         repBtn.className = "py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition";
       }
@@ -349,7 +343,9 @@
     }
 
     function updateFormCategories() {
-      const type = document.querySelector('input[name="txType"]:checked').value;
+      const checkedRadio = document.querySelector('input[name="txType"]:checked');
+      if (!checkedRadio) return;
+      const type = checkedRadio.value;
       const select = document.getElementById('txCategory');
       select.innerHTML = '';
       (categories[type] || []).forEach(cat => {
@@ -399,11 +395,11 @@
       }
     }
 
-    // REGISTRAR MOVIMIENTO (Bloqueado para usuario común)
+    // REGISTRAR MOVIMIENTO
     document.getElementById('txForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (currentUser.role !== 'admin') {
-        alert('Acceso denegado: solo el administrador puede registrar movimientos.');
+        alert('Acceso denegado.');
         return;
       }
 
