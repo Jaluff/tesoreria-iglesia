@@ -1,1 +1,451 @@
 
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tesorería Iglesia</title>
+  
+  <link rel="manifest" href="manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0f172a">
+
+  <!-- Tailwind & Supabase SDK -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen">
+
+  <!-- PANTALLA LOGIN -->
+  <div id="loginView" class="min-h-screen flex items-center justify-center p-4 bg-slate-900">
+    <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm">
+      <div class="text-center mb-6">
+        <span class="text-4xl block mb-2">🏛️</span>
+        <h1 class="text-xl font-bold text-slate-800">Tesorería Iglesia</h1>
+        <p class="text-xs text-slate-500 mt-1">Ingresa tu usuario y contraseña</p>
+      </div>
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Usuario</label>
+          <input type="text" id="loginUser" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">Contraseña</label>
+          <input type="password" id="loginPass" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition text-sm">Entrar</button>
+        <p id="loginError" class="text-xs text-red-500 text-center hidden">Usuario o contraseña incorrectos</p>
+      </form>
+    </div>
+  </div>
+
+  <!-- APLICACIÓN PRINCIPAL -->
+  <div id="appView" class="hidden pb-20">
+    <!-- Header -->
+    <header class="bg-slate-900 text-white sticky top-0 z-30 px-4 py-3 shadow">
+      <div class="max-w-md mx-auto flex items-center justify-between">
+        <div>
+          <h1 class="text-base font-bold flex items-center gap-1.5">
+            <span>🏛️</span> Tesorería
+          </h1>
+          <p id="userBadge" class="text-[11px] text-slate-400"></p>
+        </div>
+        <button onclick="logout()" class="text-xs bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700">Salir</button>
+      </div>
+
+      <!-- Barra de pestañas -->
+      <nav id="navTabs" class="max-w-md mx-auto grid grid-cols-2 gap-2 mt-3 bg-slate-800 p-1 rounded-xl">
+        <button id="tabReportsBtn" onclick="switchTab('reports')" class="py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white transition">Reportes y Balance</button>
+        <button id="tabRegisterBtn" onclick="switchTab('register')" class="py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition">Cargar Movimiento</button>
+      </nav>
+    </header>
+
+    <main class="max-w-md mx-auto p-4 space-y-4">
+
+      <!-- SECCIÓN 1: REPORTES Y BALANCES (Visible para todos) -->
+      <div id="sectionReports" class="space-y-4">
+        
+        <!-- Tarjetas de Balance Visibles -->
+        <div class="grid grid-cols-3 gap-2">
+          <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
+            <span class="text-[10px] uppercase font-bold text-emerald-600 block">Ingresos</span>
+            <span id="metricIncome" class="text-sm font-bold text-slate-800">$0</span>
+          </div>
+          <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
+            <span class="text-[10px] uppercase font-bold text-rose-600 block">Egresos</span>
+            <span id="metricExpense" class="text-sm font-bold text-slate-800">$0</span>
+          </div>
+          <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm text-center">
+            <span class="text-[10px] uppercase font-bold text-blue-600 block">Saldo</span>
+            <span id="metricBalance" class="text-sm font-bold text-slate-800">$0</span>
+          </div>
+        </div>
+
+        <!-- Filtros de Reporte -->
+        <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Fecha</label>
+              <input type="date" id="filterDate" onchange="loadReports()" class="w-full text-xs px-2 py-2 border rounded-lg">
+            </div>
+            <div>
+              <label class="block text-[11px] font-semibold text-slate-500 mb-1">Tipo</label>
+              <select id="filterType" onchange="loadReports()" class="w-full text-xs px-2 py-2 border rounded-lg bg-white">
+                <option value="all">Todos</option>
+                <option value="income">Ingresos (+)</option>
+                <option value="expense">Egresos (-)</option>
+              </select>
+            </div>
+          </div>
+          <button onclick="clearFilters()" class="text-[11px] text-blue-600 font-semibold w-full text-right">Limpiar filtros</button>
+        </div>
+
+        <!-- Lista Detallada de Movimientos -->
+        <div class="space-y-2">
+          <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider px-1">Detalle del Período</h2>
+          <div id="txList" class="space-y-2"></div>
+        </div>
+
+      </div>
+
+      <!-- SECCIÓN 2: CARGAR MOVIMIENTO (Solo Admin) -->
+      <div id="sectionRegister" class="space-y-4 hidden">
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+          <form id="txForm" class="space-y-4">
+            
+            <!-- Selector Tipo -->
+            <div class="grid grid-cols-2 gap-2 p-1 bg-slate-100 rounded-xl">
+              <label class="cursor-pointer">
+                <input type="radio" name="txType" value="income" checked class="peer sr-only" onchange="updateCategories()">
+                <div class="py-2.5 text-center text-sm font-semibold rounded-lg peer-checked:bg-emerald-600 peer-checked:text-white text-slate-600 transition">
+                  + Ingreso
+                </div>
+              </label>
+              <label class="cursor-pointer">
+                <input type="radio" name="txType" value="expense" class="peer sr-only" onchange="updateCategories()">
+                <div class="py-2.5 text-center text-sm font-semibold rounded-lg peer-checked:bg-rose-600 peer-checked:text-white text-slate-600 transition">
+                  - Egreso
+                </div>
+              </label>
+            </div>
+
+            <!-- Monto -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Monto ($)</label>
+              <input type="number" id="txAmount" step="any" inputmode="decimal" required placeholder="0.00" class="w-full px-4 py-3 rounded-xl border border-slate-300 text-2xl font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+
+            <!-- Motivo -->
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="text-xs font-semibold text-slate-500">Motivo</label>
+                <button type="button" onclick="promptNewCategory()" class="text-xs text-blue-600 font-semibold hover:underline">+ Crear motivo</button>
+              </div>
+              <select id="txCategory" required class="w-full px-4 py-2.5 rounded-xl border border-slate-300 bg-white font-medium text-slate-700 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none"></select>
+            </div>
+
+            <!-- Descripción opcional -->
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Descripción / Observación (Opcional)</label>
+              <input type="text" id="txDesc" placeholder="Ej: Pago alquiler mes actual" class="w-full px-4 py-2 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+
+            <button type="submit" id="saveTxBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 rounded-xl shadow transition text-sm">
+              Guardar Movimiento
+            </button>
+          </form>
+        </div>
+
+        <!-- ABM DE USUARIOS (Solo visible para Admin) -->
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+          <h2 class="text-sm font-bold text-slate-800 border-b pb-2">Gestión de Usuarios</h2>
+          <form id="userForm" class="space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Nuevo Usuario</label>
+              <input type="text" id="newUsername" required placeholder="ej: pastor, secretaria" class="w-full px-3 py-2 rounded-lg border text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Contraseña</label>
+              <input type="text" id="newPassword" required placeholder="clave simple" class="w-full px-3 py-2 rounded-lg border text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">Rol</label>
+              <select id="newRole" class="w-full px-3 py-2 rounded-lg border bg-white text-sm">
+                <option value="user">Usuario (Solo reportes)</option>
+                <option value="admin">Administrador (Carga + Usuarios)</option>
+              </select>
+            </div>
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg text-xs transition">
+              Crear Usuario
+            </button>
+          </form>
+
+          <div class="space-y-1.5 pt-2">
+            <h3 class="text-xs font-bold text-slate-400 uppercase">Usuarios Actuales</h3>
+            <div id="usersList" class="space-y-1 text-xs"></div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // CREDENCIALES SUPABASE
+    const SUPABASE_URL = "https://wpkbojgotrblpaggsylg.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_DpwCnnYi5nSDgBOH9Licow_iTOwy6XU";
+    const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let currentUser = JSON.parse(localStorage.getItem('treasury_session') || 'null');
+    let categories = { income: [], expense: [] };
+
+    // INICIALIZACIÓN
+    if (currentUser) {
+      startApp();
+    }
+
+    // LOGIN
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const u = document.getElementById('loginUser').value.trim();
+      const p = document.getElementById('loginPass').value.trim();
+
+      const { data, error } = await sb.from('app_users').select('*').eq('username', u).eq('password', p).single();
+
+      if (data) {
+        currentUser = data;
+        localStorage.setItem('treasury_session', JSON.stringify(data));
+        document.getElementById('loginError').classList.add('hidden');
+        startApp();
+      } else {
+        document.getElementById('loginError').classList.remove('hidden');
+      }
+    });
+
+    function logout() {
+      localStorage.removeItem('treasury_session');
+      location.reload();
+    }
+
+    function startApp() {
+      document.getElementById('loginView').classList.add('hidden');
+      document.getElementById('appView').classList.remove('hidden');
+      
+      const badge = document.getElementById('userBadge');
+      badge.textContent = `👤 ${currentUser.username} (${currentUser.role === 'admin' ? 'Administrador' : 'Usuario'})`;
+
+      const regBtn = document.getElementById('tabRegisterBtn');
+      if (currentUser.role !== 'admin') {
+        regBtn.classList.add('hidden');
+        document.getElementById('navTabs').classList.remove('grid-cols-2');
+        document.getElementById('navTabs').classList.add('grid-cols-1');
+      }
+
+      loadCategories();
+      loadReports();
+      if (currentUser.role === 'admin') {
+        loadUsersList();
+      }
+    }
+
+    // PESTAÑAS
+    function switchTab(tab) {
+      const repSec = document.getElementById('sectionReports');
+      const regSec = document.getElementById('sectionRegister');
+      const repBtn = document.getElementById('tabReportsBtn');
+      const regBtn = document.getElementById('tabRegisterBtn');
+
+      if (tab === 'reports') {
+        repSec.classList.remove('hidden');
+        regSec.classList.add('hidden');
+        repBtn.className = "py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white transition";
+        regBtn.className = "py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition";
+        loadReports();
+      } else {
+        repSec.classList.add('hidden');
+        regSec.classList.remove('hidden');
+        regBtn.className = "py-2 text-xs font-semibold rounded-lg bg-blue-600 text-white transition";
+        repBtn.className = "py-2 text-xs font-semibold rounded-lg text-slate-400 hover:text-white transition";
+      }
+    }
+
+    // CATEGORÍAS
+    async function loadCategories() {
+      const { data } = await sb.from('categories').select('*');
+      if (data) {
+        categories.income = data.filter(c => c.type === 'income').map(c => c.name);
+        categories.expense = data.filter(c => c.type === 'expense').map(c => c.name);
+      }
+      updateCategories();
+    }
+
+    function updateCategories() {
+      const type = document.querySelector('input[name="txType"]:checked').value;
+      const select = document.getElementById('txCategory');
+      select.innerHTML = '';
+      (categories[type] || []).forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        select.appendChild(opt);
+      });
+    }
+
+    async function promptNewCategory() {
+      const type = document.querySelector('input[name="txType"]:checked').value;
+      const val = prompt(`Nuevo motivo para ${type === 'income' ? 'Ingreso' : 'Egreso'}:`);
+      if (val && val.trim()) {
+        const clean = val.trim();
+        await sb.from('categories').insert([{ type, name: clean }]);
+        categories[type].push(clean);
+        updateCategories();
+        document.getElementById('txCategory').value = clean;
+      }
+    }
+
+    // GUARDAR MOVIMIENTO (Solo Admin)
+    document.getElementById('txForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('saveTxBtn');
+      btn.disabled = true;
+      btn.textContent = 'Guardando...';
+
+      const type = document.querySelector('input[name="txType"]:checked').value;
+      const amount = parseFloat(document.getElementById('txAmount').value);
+      const category = document.getElementById('txCategory').value;
+      const description = document.getElementById('txDesc').value;
+
+      const { error } = await sb.from('transactions').insert([{
+        type,
+        amount,
+        category,
+        description,
+        transacted_at: new Date().toISOString(),
+        created_by: currentUser.username
+      }]);
+
+      btn.disabled = false;
+      btn.textContent = 'Guardar Movimiento';
+
+      if (!error) {
+        document.getElementById('txAmount').value = '';
+        document.getElementById('txDesc').value = '';
+        alert('✅ Movimiento registrado correctamente');
+        switchTab('reports');
+      } else {
+        alert('Error: ' + error.message);
+      }
+    });
+
+    // REPORTES Y FILTROS
+    async function loadReports() {
+      const dateVal = document.getElementById('filterDate').value;
+      const typeVal = document.getElementById('filterType').value;
+      const list = document.getElementById('txList');
+      list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">Cargando datos...</p>';
+
+      let query = sb.from('transactions').select('*').order('transacted_at', { ascending: false });
+
+      if (typeVal !== 'all') {
+        query = query.eq('type', typeVal);
+      }
+
+      if (dateVal) {
+        const start = new Date(dateVal + 'T00:00:00').toISOString();
+        const end = new Date(dateVal + 'T23:59:59').toISOString();
+        query = query.gte('transacted_at', start).lte('transacted_at', end);
+      }
+
+      const { data } = await query;
+
+      if (!data || data.length === 0) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No hay movimientos para este filtro.</p>';
+        document.getElementById('metricIncome').textContent = '$0';
+        document.getElementById('metricExpense').textContent = '$0';
+        document.getElementById('metricBalance').textContent = '$0';
+        return;
+      }
+
+      let totalIn = 0;
+      let totalOut = 0;
+      list.innerHTML = '';
+
+      data.forEach(item => {
+        const isIncome = item.type === 'income';
+        const num = Number(item.amount);
+        if (isIncome) totalIn += num;
+        else totalOut += num;
+
+        const d = new Date(item.transacted_at);
+        const fechaHora = d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        const row = document.createElement('div');
+        row.className = 'bg-white p-3 rounded-xl border border-slate-200 flex items-center justify-between shadow-sm';
+        row.innerHTML = `
+          <div>
+            <div class="font-bold text-sm text-slate-800">${item.category}</div>
+            <div class="text-[11px] text-slate-400">${fechaHora} ${item.description ? '· ' + item.description : ''}</div>
+          </div>
+          <div class="font-bold text-sm ${isIncome ? 'text-emerald-600' : 'text-rose-600'}">
+            ${isIncome ? '+' : '-'}$${num.toLocaleString('es-AR')}
+          </div>
+        `;
+        list.appendChild(row);
+      });
+
+      document.getElementById('metricIncome').textContent = `$${totalIn.toLocaleString('es-AR')}`;
+      document.getElementById('metricExpense').textContent = `$${totalOut.toLocaleString('es-AR')}`;
+      const balance = totalIn - totalOut;
+      const bElem = document.getElementById('metricBalance');
+      bElem.textContent = `$${balance.toLocaleString('es-AR')}`;
+      bElem.className = `text-sm font-bold ${balance >= 0 ? 'text-blue-600' : 'text-rose-600'}`;
+    }
+
+    function clearFilters() {
+      document.getElementById('filterDate').value = '';
+      document.getElementById('filterType').value = 'all';
+      loadReports();
+    }
+
+    // GESTIÓN DE USUARIOS (Solo Admin)
+    document.getElementById('userForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('newUsername').value.trim();
+      const password = document.getElementById('newPassword').value.trim();
+      const role = document.getElementById('newRole').value;
+
+      const { error } = await sb.from('app_users').insert([{ username, password, role }]);
+      if (!error) {
+        document.getElementById('newUsername').value = '';
+        document.getElementById('newPassword').value = '';
+        alert('Usuario creado con éxito');
+        loadUsersList();
+      } else {
+        alert('Error (puede que el usuario ya exista): ' + error.message);
+      }
+    });
+
+    async function loadUsersList() {
+      const container = document.getElementById('usersList');
+      const { data } = await sb.from('app_users').select('id, username, role');
+      if (data) {
+        container.innerHTML = data.map(u => `
+          <div class="flex justify-between py-1 border-b border-slate-100">
+            <span><b>${u.username}</b> (${u.role})</span>
+            ${u.username !== 'admin' ? `<button onclick="deleteUser(${u.id})" class="text-rose-500 font-bold hover:underline">Eliminar</button>` : ''}
+          </div>
+        `).join('');
+      }
+    }
+
+    async function deleteUser(id) {
+      if (confirm('¿Eliminar este usuario?')) {
+        await sb.from('app_users').delete().eq('id', id);
+        loadUsersList();
+      }
+    }
+  </script>
+</body>
+</html>
