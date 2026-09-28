@@ -62,7 +62,7 @@
 
     <main class="max-w-md mx-auto p-4 space-y-4">
 
-      <!-- SECCIÓN 1: REPORTES Y BALANCES -->
+      <!-- SECCIÓN 1: REPORTES Y BALANCES (Visible para todos) -->
       <div id="sectionReports" class="space-y-4">
         
         <!-- Tarjetas de Balance Visibles -->
@@ -114,7 +114,7 @@
           <button onclick="clearFilters()" class="text-[11px] text-blue-600 font-semibold w-full text-right hover:underline">Limpiar todos los filtros</button>
         </div>
 
-        <!-- Lista de Movimientos con Edición/Eliminación -->
+        <!-- Lista Detallada de Movimientos -->
         <div class="space-y-2">
           <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider px-1">Detalle de Movimientos</h2>
           <div id="txList" class="space-y-2"></div>
@@ -157,7 +157,7 @@
 
             <div>
               <label class="block text-xs font-semibold text-slate-500 mb-1">Descripción / Observación (Opcional)</label>
-              <input type="text" id="txDesc" placeholder="Ej: Pago de alquiler, culto dominical..." class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              <input type="text" id="txDesc" placeholder="Ej: Culto dominical, pago servicios..." class="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
             </div>
 
             <button type="submit" id="saveTxBtn" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3 rounded-xl shadow transition text-sm">
@@ -166,7 +166,7 @@
           </form>
         </div>
 
-        <!-- ABM DE USUARIOS -->
+        <!-- ABM DE USUARIOS (Solo Admin) -->
         <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200 space-y-4">
           <h2 class="text-sm font-bold text-slate-800 border-b pb-2">Gestión de Usuarios</h2>
           <form id="userForm" class="space-y-3">
@@ -289,22 +289,33 @@
       badge.textContent = `👤 ${currentUser.username} (${currentUser.role === 'admin' ? 'Administrador' : 'Usuario'})`;
 
       const regBtn = document.getElementById('tabRegisterBtn');
+      const regSec = document.getElementById('sectionRegister');
+      const navTabs = document.getElementById('navTabs');
+
+      // BLOQUEO ESTRICTO POR ROL
       if (currentUser.role !== 'admin') {
         regBtn.classList.add('hidden');
-        document.getElementById('navTabs').classList.remove('grid-cols-2');
-        document.getElementById('navTabs').classList.add('grid-cols-1');
+        regSec.classList.add('hidden');
+        navTabs.classList.remove('grid-cols-2');
+        navTabs.classList.add('grid-cols-1');
+        switchTab('reports');
+      } else {
+        regBtn.classList.remove('hidden');
+        navTabs.classList.add('grid-cols-2');
+        navTabs.classList.remove('grid-cols-1');
+        loadUsersList();
       }
 
       await loadCategories();
       populateFilterCategories();
       loadReports();
-
-      if (currentUser.role === 'admin') {
-        loadUsersList();
-      }
     }
 
     function switchTab(tab) {
+      if (currentUser.role !== 'admin' && tab === 'register') {
+        tab = 'reports';
+      }
+
       const repSec = document.getElementById('sectionReports');
       const regSec = document.getElementById('sectionRegister');
       const repBtn = document.getElementById('tabReportsBtn');
@@ -375,6 +386,7 @@
     }
 
     async function promptNewCategory() {
+      if (currentUser.role !== 'admin') return;
       const type = document.querySelector('input[name="txType"]:checked').value;
       const val = prompt(`Nuevo motivo para ${type === 'income' ? 'Ingreso' : 'Egreso'}:`);
       if (val && val.trim()) {
@@ -387,9 +399,14 @@
       }
     }
 
-    // REGISTRAR MOVIMIENTO (Solo Admin)
+    // REGISTRAR MOVIMIENTO (Bloqueado para usuario común)
     document.getElementById('txForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (currentUser.role !== 'admin') {
+        alert('Acceso denegado: solo el administrador puede registrar movimientos.');
+        return;
+      }
+
       const btn = document.getElementById('saveTxBtn');
       btn.disabled = true;
       btn.textContent = 'Guardando...';
@@ -451,7 +468,7 @@
       currentTransactions = data || [];
 
       if (!data || data.length === 0) {
-        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No se encontraron movimientos con los filtros aplicados.</p>';
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">No se encontraron movimientos.</p>';
         document.getElementById('metricIncome').textContent = '$0';
         document.getElementById('metricExpense').textContent = '$0';
         document.getElementById('metricBalance').textContent = '$0';
@@ -515,6 +532,7 @@
 
     // ELIMINAR MOVIMIENTO (Solo Admin)
     async function deleteTransaction(id) {
+      if (currentUser.role !== 'admin') return;
       if (!confirm('¿Estás seguro de eliminar este movimiento?')) return;
       const { error } = await sb.from('transactions').delete().eq('id', id);
       if (!error) {
@@ -526,6 +544,7 @@
 
     // EDITAR MOVIMIENTO (Solo Admin)
     function openEditModal(id) {
+      if (currentUser.role !== 'admin') return;
       const item = currentTransactions.find(t => t.id === id);
       if (!item) return;
 
@@ -534,7 +553,6 @@
       document.getElementById('editAmount').value = item.amount;
       document.getElementById('editDesc').value = item.description || '';
       
-      // Fecha en formato YYYY-MM-DD
       const dateStr = new Date(item.transacted_at).toISOString().split('T')[0];
       document.getElementById('editDate').value = dateStr;
 
@@ -562,6 +580,8 @@
 
     document.getElementById('editForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (currentUser.role !== 'admin') return;
+
       const id = document.getElementById('editId').value;
       const type = document.getElementById('editType').value;
       const amount = parseFloat(document.getElementById('editAmount').value);
@@ -590,6 +610,8 @@
     // ABM USUARIOS (Solo Admin)
     document.getElementById('userForm').addEventListener('submit', async (e) => {
       e.preventDefault();
+      if (currentUser.role !== 'admin') return;
+
       const username = document.getElementById('newUsername').value.trim();
       const password = document.getElementById('newPassword').value.trim();
       const role = document.getElementById('newRole').value;
@@ -606,6 +628,7 @@
     });
 
     async function loadUsersList() {
+      if (currentUser.role !== 'admin') return;
       const container = document.getElementById('usersList');
       const { data } = await sb.from('app_users').select('id, username, role');
       if (data) {
@@ -619,6 +642,7 @@
     }
 
     async function deleteUser(id) {
+      if (currentUser.role !== 'admin') return;
       if (confirm('¿Eliminar este usuario?')) {
         await sb.from('app_users').delete().eq('id', id);
         loadUsersList();
